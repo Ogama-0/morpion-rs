@@ -1,6 +1,9 @@
+use core::panic;
+use std::fmt::Debug;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result;
+use std::io;
 
 #[derive(PartialEq)]
 pub enum Player {
@@ -78,23 +81,89 @@ impl Display for Bord {
         let c = &self.core;
         write!(
             f,
-            "{} {} {}\n{} {} {}\n{} {} {}",
-            c[6], c[7], c[8], c[3], c[4], c[5], c[0], c[1], c[2]
+            "┌───┬───┬───┐\n│ {} │ {} │ {} │\n├───┼───┼───┤\n│ {} │ {} │ {} │\n├───┼───┼───┤\n│ {} │ {} │ {} │\n└───┴───┴───┘",
+            better_display(c[6]),
+            better_display(c[7]),
+            better_display(c[8]),
+            better_display(c[3]),
+            better_display(c[4]),
+            better_display(c[5]),
+            better_display(c[0]),
+            better_display(c[1]),
+            better_display(c[2])
         )
+    }
+}
+fn better_display(n: i32) -> char {
+    match n {
+        0 => ' ',
+        1 => '╳',
+        2 => '○',
+        _ => panic!("il n'y a que deux player"),
+    }
+}
+impl Debug for Bord {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let c = &self.core;
+        write!(
+            f,
+            "─────────────\n| 7 | 8 | 9 |\n| 4 | 5 | 6 |\n| 1 | 2 | 3 |\n─────────────",
+        )
+    }
+}
+pub struct Morpion {
+    bord: Bord,
+}
+impl Morpion {
+    pub fn new() -> Self {
+        Self { bord: Bord::new() }
+    }
+    pub fn new_game(&mut self) {
+        let mut winer = String::new();
+        let mut current_player: i32 = 1;
+        loop {
+            println!(
+                "c'est au joueur {} de jouer : entrez le numero de la case :",
+                current_player
+            );
+            let mut guess = String::new();
+            if let Win::Plyr(player) = self.bord.check_win() {
+                match player {
+                    Player::Player1(p1) => winer = p1,
+                    Player::Player2(p2) => winer = p2,
+                }
+                break;
+            }
+            io::stdin()
+                .read_line(&mut guess)
+                .expect("Failed to read line");
+            let mut guess: usize = match guess.trim().parse() {
+                Ok(n) => n,
+                Err(_) => continue,
+            };
+            guess -= 1;
+            if self.play(&current_player, &guess).is_err() {
+                continue;
+            };
+            println!("{}", self.bord);
+            switch_player(&mut current_player);
+        }
+        println!("{}", self.bord);
+        println!("GG {} You win !!", winer);
+    }
+    pub fn play(&mut self, current_player: &i32, case: &usize) -> Result {
+        let inner_case: i32 = match self.bord.core.get(*case) {
+            Some(c) => *c,
+            None => return Err(std::fmt::Error {}),
+        };
+        if inner_case != 0 {
+            return Err(std::fmt::Error {});
+        }
+
+        self.bord.core[*case] = *current_player;
+        Ok(())
     }
 }
 pub fn switch_player(n: &mut i32) {
     *n = 3 - *n
-}
-pub fn play(current_player: &i32, case: &usize, bord: &mut Bord) -> Result {
-    let inner_case: i32 = match bord.core.get(*case) {
-        Some(c) => *c,
-        None => return Err(std::fmt::Error {}),
-    };
-    if inner_case != 0 {
-        return Err(std::fmt::Error {});
-    }
-
-    bord.core[*case] = *current_player;
-    Ok(())
 }
